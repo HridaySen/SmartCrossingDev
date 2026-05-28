@@ -14,9 +14,14 @@ from PIL import Image, ImageTk
 class FrameCanvas(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
+
+        # Set the width and height of the canvas
+        self.canvas_width = 1500
+        self.canvas_height = 900
         
-        self.canvas = tk.Canvas(self, bg="white")
-        self.canvas.pack(fill="both", expand=True)
+        # Create a canvas widget and pack it into the frame
+        self.canvas = tk.Canvas(self, bg="red", width=self.canvas_width, height=self.canvas_height)
+        self.canvas.pack(fill=tk.BOTH, expand=True)
         
         self.drawing = False
         self.drawn_points = []
@@ -40,7 +45,11 @@ class FrameCanvas(tk.Frame):
     def show_feed(self):
         # Get the opencv feed
         ret, frame = self.capture.read()
+        # print(f"Frame dimensions: {frame.shape}")
         if ret:
+            # Resize the frame to fit the canvas
+            frame = self.__resize_frame(frame)
+
             # Convert the frame to RGB format from BGR format
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -50,9 +59,24 @@ class FrameCanvas(tk.Frame):
             # Convert the PIL image to a PhotoImage
             photo = ImageTk.PhotoImage(image)
 
+            # Get the center of canvas
+            center_x, center_y = self.__return_center()
+
             # Display the PhotoImage on the canvas
-            self.canvas.create_image(0, 0, image=photo, anchor=tk.NW)
+            self.canvas.create_image(center_x, center_y, image=photo, anchor=tk.CENTER)
             self.canvas.image = photo
 
         # Schedule the next frame update
         self.after(15, self.show_feed)
+
+    def __resize_frame(self, frame):
+        frame_height, frame_width = frame.shape[:2]
+        scaling_factor = min(self.canvas_width / frame_width, self.canvas_height / frame_height)
+        new_width = int(frame_width * scaling_factor)
+        new_height = int(frame_height * scaling_factor)
+        
+        # Resize the frame to fit the canvas
+        return cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    
+    def __return_center(self):
+        return self.canvas_width // 2, self.canvas_height // 2

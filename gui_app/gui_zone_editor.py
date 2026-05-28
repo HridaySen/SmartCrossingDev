@@ -8,7 +8,7 @@ class GUIZoneEditor:
 
         # Set the title and size of the main window
         self.master.title("Zone Editor")
-        self.master.geometry("1500x1000")
+        self.master.geometry("1600x900")
 
         # Initialize the canvas and control panel
         self.canvas = FrameCanvas(self.master)
@@ -16,7 +16,7 @@ class GUIZoneEditor:
 
     def display(self):
         # Arrange the canvas and control panel in the main window
-        self.canvas.pack(side="left", fill="both", expand=True)
+        self.canvas.pack(side="left",fill="both", expand=True)
         self.panel.pack(side="right", fill="y")
 
 if __name__ == "__main__":
