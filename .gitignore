@@ -1,2 +1,4 @@
 venv/
 gui_app/__pycache__/
+core/__pycache__/
+data/pycache__/
