@@ -17,15 +17,13 @@ class ControlPanel(tk.Frame):
         self.select_frame_button.pack(pady=10)
 
     def start_drawing(self):
-        # Placeholder for starting the drawing process
+        self.canvas.drawing = True
         print("Start Drawing button clicked")
 
-    def select_frame(self):
-        # Placeholder for selecting a frame
-        print("Select Frame button clicked")
 
+    def select_frame(self):
+        print("Select Frame button clicked")
         self.canvas.save_frame()
 
     def save_zone(self):
-        # Placeholder for saving a zone
         print("Save Zone button clicked")

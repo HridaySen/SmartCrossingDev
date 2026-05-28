@@ -9,8 +9,6 @@ from core.zone import Zone
 from PIL import Image, ImageTk
 
 # Make a Canvas frame, under the tk.Frame class
-# tk.Frame is a layout widget that can contain other widgets, and can be used to organize the layout of the GUI. 
-# By inheriting from tk.Frame, we can create a custom frame that contains a canvas for drawing and displaying the camera feed.
 class FrameCanvas(tk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
@@ -26,6 +24,16 @@ class FrameCanvas(tk.Frame):
         # Initialize variables for drawing zones
         self.drawing = False
         self.drawn_points = []
+
+        # Track the current displayed image dimensions for accurate click position calculations
+        self.current_img_w = 0
+        self.current_img_h = 0
+
+        # track the current scale of the displayed image for accurate click position calculations
+        self.current_img_scale = 1.0
+
+        # Bind the left mouse button click event to the canvas for drawing zones
+        self.canvas.bind("<Button-1>", self.on_canvas_click)
 
         # Initialize the camera feed
         self.camera_source = 0
@@ -43,10 +51,54 @@ class FrameCanvas(tk.Frame):
 
         self.show_feed()
 
+    # new method to handle canvas clicks for drawing zones
+    def on_canvas_click(self, event):
+        # Only allow drawing if the drawing mode is active
+        if not self.drawing:
+            print("Not in drawing mode, click ignored.")
+            return
+
+        # no image loaded/displayed yet, so we can't calculate the click position relative to the image, ignore the click
+        if self.current_img_w == 0 or self.current_img_h == 0:
+            print("Image not loaded yet, click ignored.")
+            return
+
+        # Find the current live center of the canvas
+        center_x, center_y = self.__return_center()
+
+        # Calculate the boundaries of the image relative to the canvas origin (0,0)
+        img_start_x = center_x - (self.current_img_w // 2)
+        img_start_y = center_y - (self.current_img_h // 2)
+
+        # Subtract boundaries to find the click location on the frame surface
+        frame_click_x = event.x - img_start_x
+        frame_click_y = event.y - img_start_y
+
+        # These are real coordinates on the 1080p frame, which we can use for zoning and saving to our JSON file
+        real_1080p_x = frame_click_x / self.current_img_scale
+        real_1080p_y = frame_click_y / self.current_img_scale
+
+        # Check if the user clicked inside the actual image frame boundaries
+        if 0 <= frame_click_x <= self.current_img_w and 0 <= frame_click_y <= self.current_img_h:
+            print(f"Clicked INSIDE the frame lololol: X={frame_click_x}, Y={frame_click_y}, Scaled: X={real_1080p_x}, Y={real_1080p_y}")           
+            
+            # Add to the list of drawn points for zoning
+            self.drawn_points.append((real_1080p_x, real_1080p_y))
+
+            # Make a drawing
+            radius = 4
+            point_id = self.canvas.create_oval(
+                event.x - radius, event.y - radius,
+                event.x + radius, event.y + radius,
+                fill="green", outline="black", width=1.5
+            )
+        else:
+            print("Clicked OUTSIDE the camera frame (on the red canvas space). Ignored.")
+    
+
     def show_feed(self):
         # Get the opencv feed
         ret, frame = self.capture.read()
-        # print(f"Frame dimensions: {frame.shape}")
         if ret:
             # Prepare the frame for display on the canvas
             photo = self.__prepare_frame(frame)
@@ -73,9 +125,11 @@ class FrameCanvas(tk.Frame):
             photo = self.__prepare_frame(self.__resize_frame(frame))
             self.__update_canvas(photo)
             
-            
-    
     def __update_canvas(self, photo):
+        # ─── UPDATE IMAGE TRACKING VALUES LIVE ───
+        self.current_img_w = photo.width()
+        self.current_img_h = photo.height()
+
         # Get the center of canvas
         center_x, center_y = self.__return_center()
 
@@ -87,6 +141,11 @@ class FrameCanvas(tk.Frame):
             self.canvas.coords(self.canvas_image_id, center_x, center_y)
 
         self.canvas.image = photo
+        # Tkinter clears all shapes when you update the image, so we need to redraw the drawn points on top of the new image
+        # So we bring the drawn points to the front after updating the image, so they are visible on top of the new image
+        for point in self.drawn_points:
+            self.canvas.tag_raise(point)
+
     
     def __prepare_frame(self, frame):
         # Resize the frame to fit the canvas
@@ -110,16 +169,14 @@ class FrameCanvas(tk.Frame):
 
         # Get the dimensions of the frame and calculate the scaling factor to fit it within the canvas while maintaining the aspect ratio
         frame_height, frame_width = frame.shape[:2]
-        scaling_factor = min(current_canvas_w / frame_width, current_canvas_h / frame_height)
-        new_width = int(frame_width * scaling_factor)
-        new_height = int(frame_height * scaling_factor)
+        self.current_img_scale = min(current_canvas_w / frame_width, current_canvas_h / frame_height)
+        new_width = int(frame_width * self.current_img_scale)
+        new_height = int(frame_height * self.current_img_scale)
         
         # Resize the frame to fit the canvas
         return cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_AREA)
     
     def __return_center(self):
-        # winfo gets you the live dimensions of the canvas, which is important for resizing the window and keeping the feed centered. 
-        # If the dimensions are 1, it means the window hasn't been rendered yet, so we use the max dimensions instead.
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
 
