@@ -38,6 +38,9 @@ class FrameCanvas(tk.Frame):
         # Now prevent memory leaks by keeping track of the canvas image
         self.canvas_image_id = None
 
+        # Track loop_id for after method, so we can cancel it when the window is closed to prevent memory leaks
+        self.loop_id = None
+
         self.show_feed()
 
     def show_feed(self):
@@ -45,32 +48,14 @@ class FrameCanvas(tk.Frame):
         ret, frame = self.capture.read()
         # print(f"Frame dimensions: {frame.shape}")
         if ret:
-            # Resize the frame to fit the canvas
-            frame = self.__resize_frame(frame)
-
-            # Convert the frame to RGB format from BGR format
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            # Convert the frame to a PIL image
-            image = Image.fromarray(frame)
-
-            # Convert the PIL image to a PhotoImage
-            photo = ImageTk.PhotoImage(image)
-
-            # Get the center of canvas
-            center_x, center_y = self.__return_center()
+            # Prepare the frame for display on the canvas
+            photo = self.__prepare_frame(frame)
 
             # Update the existing image, or create a new one if it doesn't exist
-            if self.canvas_image_id is None:
-                self.canvas_image_id = self.canvas.create_image(center_x, center_y, image=photo, anchor=tk.CENTER)
-            else:
-                self.canvas.itemconfig(self.canvas_image_id, image=photo)
-                self.canvas.coords(self.canvas_image_id, center_x, center_y)
-
-            self.canvas.image = photo
+            self.__update_canvas(photo)
 
         # Schedule the next frame update
-        self.after(15, self.show_feed)
+        self.loop_id = self.after(15, self.show_feed)
 
     def save_frame(self):
         # Get the current frame from the camera feed
@@ -78,6 +63,45 @@ class FrameCanvas(tk.Frame):
         if ret:
             # Save the frame to a file
             cv2.imwrite("frame_chosen.jpg", frame)
+
+            # kill the camera feed to prevent memory leaks
+            if self.loop_id is not None:
+                self.after_cancel(self.loop_id)
+                self.loop_id = None # Reset the loop_id for later
+            
+            # Prepare this frame
+            photo = self.__prepare_frame(self.__resize_frame(frame))
+            self.__update_canvas(photo)
+            
+            
+    
+    def __update_canvas(self, photo):
+        # Get the center of canvas
+        center_x, center_y = self.__return_center()
+
+        # Update the existing image, or create a new one if it doesn't exist
+        if self.canvas_image_id is None:
+            self.canvas_image_id = self.canvas.create_image(center_x, center_y, image=photo, anchor=tk.CENTER)
+        else:
+            self.canvas.itemconfig(self.canvas_image_id, image=photo)
+            self.canvas.coords(self.canvas_image_id, center_x, center_y)
+
+        self.canvas.image = photo
+    
+    def __prepare_frame(self, frame):
+        # Resize the frame to fit the canvas
+        frame = self.__resize_frame(frame)
+
+        # Convert the frame to RGB format from BGR format
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Convert the frame to a PIL image
+        image = Image.fromarray(frame)
+
+        # Convert the PIL image to a PhotoImage
+        photo = ImageTk.PhotoImage(image)
+
+        return photo
 
     def __resize_frame(self, frame):
         # current canvas dimensions
