@@ -48,5 +48,5 @@ class Zone:
             json.dump(zone_data, f, indent=4)
 
 # Example usage, just initial test
-zone = Zone([(0, 0), (1, 0), (1, 1), (0, 1)])
-zone.save_zone()
+#zone = Zone([(0, 0), (1, 0), (1, 1), (0, 1)])
+#zone.save_zone()
