@@ -1,3 +1,4 @@
 frame_canvas.py:
 1. https://stackoverflow.com/questions/74820040/how-to-show-webcam-within-tkinter-canvas
 2. https://www.geeksforgeeks.org/python/image-resizing-using-opencv-python/
+3. https://stackoverflow.com/questions/33792002/how-to-draw-transparent-polygon

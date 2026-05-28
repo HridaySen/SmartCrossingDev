@@ -24,6 +24,8 @@ class FrameCanvas(tk.Frame):
         # Initialize variables for drawing zones
         self.drawing = False
         self.drawn_points = []
+        self.drawn_points_current_resolution = []
+        self.clicked_points = [] # Store the event.x and event.y
 
         # Track the current displayed image dimensions for accurate click position calculations
         self.current_img_w = 0
@@ -63,6 +65,9 @@ class FrameCanvas(tk.Frame):
             print("Image not loaded yet, click ignored.")
             return
 
+        # save clicks to event clicks list
+        self.clicked_points.append((event.x, event.y))
+
         # Find the current live center of the canvas
         center_x, center_y = self.__return_center()
 
@@ -73,6 +78,7 @@ class FrameCanvas(tk.Frame):
         # Subtract boundaries to find the click location on the frame surface
         frame_click_x = event.x - img_start_x
         frame_click_y = event.y - img_start_y
+        self.drawn_points_current_resolution.append((frame_click_x, frame_click_y))
 
         # These are real coordinates on the 1080p frame, which we can use for zoning and saving to our JSON file
         real_1080p_x = frame_click_x / self.current_img_scale
@@ -122,7 +128,7 @@ class FrameCanvas(tk.Frame):
                 self.loop_id = None # Reset the loop_id for later
             
             # Prepare this frame
-            photo = self.__prepare_frame(self.__resize_frame(frame))
+            photo = self.__prepare_frame()
             self.__update_canvas(photo)
             
     def __update_canvas(self, photo):
@@ -145,6 +151,19 @@ class FrameCanvas(tk.Frame):
         # So we bring the drawn points to the front after updating the image, so they are visible on top of the new image
         for point in self.drawn_points:
             self.canvas.tag_raise(point)
+    
+    def show_zone(self):
+        # Create a Zone object with the drawn points and display it on the canvas
+        if self.clicked_points:
+            zone = Zone(self.clicked_points)
+            # Here you would add code to display the zone on the canvas, e.g. by drawing a polygon using the zone's points
+            for i in range(len(zone.points)):
+                x1, y1 = zone.points[i]
+                x2, y2 = zone.points[(i + 1) % len(zone.points)]  # Wrap around to the first point
+                self.canvas.create_line(x1, y1, x2, y2, fill="blue", width=2)
+            print("Zone displayed with points:", zone.points)
+        else:
+            print("No points drawn to create a zone.")
 
     
     def __prepare_frame(self, frame):
