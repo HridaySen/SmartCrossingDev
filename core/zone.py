@@ -58,3 +58,24 @@ class Zone:
             data = json.load(f)
             print(f"Zone data loaded from {self.file_path}: {data}")
             return data
+    
+    def check_intersection(self, bounding_box):
+        # Check if the bounding box intersects with the zone polygon
+        return self.polygon.intersects(bounding_box.convert_to_polygon())
+    
+
+class ZoneLoader:
+    def __init__(self):
+        self.file_path = os.path.join(os.getcwd(), 'data', 'zones.json')
+        self.zones = []
+        self.load_zones()
+    
+    def load_zones(self):
+        # Load zones from the JSON file and create Zone objects
+        with open(self.file_path, 'r') as f:
+            data = json.load(f)
+            print(f"Zone data loaded from {self.file_path}: {data}")
+            for zone_data in data:
+                zone = Zone(zone_data['points'])
+                zone.zone_id = zone_data['zone_id']
+                self.zones.append(zone)

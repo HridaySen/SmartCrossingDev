@@ -4,3 +4,6 @@ frame_canvas.py:
 3. https://stackoverflow.com/questions/33792002/how-to-draw-transparent-polygon
 4. https://stackoverflow.com/questions/19448078/python-opencv-access-webcam-maximum-resolution
 5. https://www.makeareadme.com/
+
+yolo_detector.py
+1. https://github.com/ultralytics/ultralytics/issues/13419

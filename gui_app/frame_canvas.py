@@ -6,6 +6,7 @@ import cv2
 # Look for imports starting from the project root.
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from core.zone import Zone
+from core.camera_module import CameraModule
 from PIL import Image, ImageTk
 
 # Make a Canvas frame, under the tk.Frame class
@@ -38,12 +39,11 @@ class FrameCanvas(tk.Frame):
         self.canvas.bind("<Button-1>", self.on_canvas_click)
 
         # Initialize the camera feed
-        self.camera_source = 0
-        self.capture = cv2.VideoCapture(self.camera_source, cv2.CAP_DSHOW)
+        self.capture = CameraModule().get_webcam_capture()
 
         # Opencv uses 640x480 by default, so we need to set it to 1920x1080 for our laptop camera feed
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
         # Now prevent memory leaks by keeping track of the canvas image
         self.canvas_image_id = None
