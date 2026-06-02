@@ -1,45 +1,77 @@
 import tkinter as tk
 from core.zone import Zone
 
+
+# Control panel displayed on the right-hand side of the GUI.
+# Contains all buttons used to interact with the zone editor.
 class ControlPanel(tk.Frame):
+
     def __init__(self, parent, canvas):
-        super().__init__(parent)
+        # Create a fixed-width frame for the control panel.
+        super().__init__(parent, width=300, bg="lightgray")
+
+        # Prevent the frame from shrinking to fit its contents.
+        self.pack_propagate(False)
+
+        # Reference to the FrameCanvas object so buttons can access canvas functions.
         self.canvas = canvas
+
         self.create_widgets()
 
     def create_widgets(self):
-        self.start_drawing_button = tk.Button(self, text="Start Drawing", command=self.start_drawing)
-        self.start_drawing_button.pack(pady=10)
+        # List of all buttons and their associated callback functions.
+        buttons = [
+            ("Start Drawing", self.start_drawing),
+            ("Save Zone", self.save_zone),
+            ("Select Frame", self.select_frame),
+            ("Show Zone", self.show_zones),
+            ("Undo Last Point", self.undo_last_point),
+            ("Clear Current Zone", self.clear_current_zone),
+            ("Save Snapshot With Zones", self.save_snapshot_with_zones),
+        ]
 
-        self.save_zone_button = tk.Button(self, text="Save Zone", command=self.save_zone)
-        self.save_zone_button.pack(pady=10)
+        # Create and display all buttons.
+        for text, command in buttons:
+            button = tk.Button(self, text=text, command=command)
+            button.pack(fill="x", padx=15, pady=8)
 
-        self.select_frame_button = tk.Button(self, text="Select Frame", command=self.select_frame)
-        self.select_frame_button.pack(pady=10)
-
-        self.show_zones_button = tk.Button(self, text="Show Zones", command=self.show_zones)
-        self.show_zones_button.pack(pady=10)
-
+    # Enable point placement mode.
     def start_drawing(self):
         self.canvas.drawing = True
-        print("Start Drawing button clicked")
+        self.canvas.editing = False
+        print("Drawing mode started.")
 
-    def show_zones(self):
-        print("Show Zones button clicked")
-        self.canvas.show_zone()
+    # Save the currently drawn polygon as a zone.
+    def save_zone(self):
+        # A valid polygon requires at least three vertices.
+        if len(self.canvas.drawn_points) < 3:
+            print("A zone needs at least 3 points.")
+            return
 
+        self.canvas.drawing = False
+        self.canvas.editing = True
+
+        zone = Zone(self.canvas.drawn_points)
+        zone.save_zone()
+
+        print("Zone saved with points:", self.canvas.drawn_points)
+
+    # Freeze the current camera frame.
     def select_frame(self):
-        print("Select Frame button clicked")
         self.canvas.save_frame()
 
-    def save_zone(self):
-        if self.canvas.drawing:
-            self.canvas.drawing = False
-            print("Finished drawing zone with points:", self.canvas.drawn_points)
-            # Here you would create a Zone object and save it using the points in self.canvas.drawn_points
-            zone = Zone(self.canvas.drawn_points)
-            zone.save_zone()
-            self.canvas.drawn_points = [] # Clear the drawn points after saving
-            self.canvas.drawn_points_current_resolution = [] # Clear the drawn points in current resolution after saving
-            self.canvas.clicked_points = [] # Clear the clicked points after saving
-        print("Save Zone button clicked")
+    # Display a closed polygon on the canvas.
+    def show_zones(self):
+        self.canvas.show_zone()
+
+    # Remove the most recently added point.
+    def undo_last_point(self):
+        self.canvas.undo_last_point()
+
+    # Remove all points and drawings from the current zone.
+    def clear_current_zone(self):
+        self.canvas.clear_current_zone()
+
+    # Save an image containing the frame and zone overlay.
+    def save_snapshot_with_zones(self):
+        self.canvas.save_snapshot_with_zones()
