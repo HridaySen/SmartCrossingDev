@@ -18,3 +18,7 @@ First ensure you have vscode and python already installed.
 5. Then start clicking on the image. Once you have at least 3 points clicked, click: "show zones"
 6. Click "save zones"
 7. You can check the saved zones in zones.json in the 1920x1080 cartesian plane space (NOT YOUR SCREEN SCALE)
+
+## DEV DETAILS
+1. Running livecamfeed from RPiCam for testing: rpicam-vid -t 0 --codec mjpeg --inline --listen -o tcp://0.0.0.0:8000
+2. Then run main.py from SmartCrossingCode terminal directory.
