@@ -18,6 +18,15 @@ class FrameCanvas(tk.Frame):
         self.max_width = 1500
         self.max_height = 860
 
+        # Label for displaying real frame coordinates under the mouse.
+        # It is packed first at the bottom so the canvas cannot hide it.
+        self.coordinate_label = tk.Label(
+            self,
+            text="Coordinates: X = -, Y = -",
+            anchor="w"
+        )
+        self.coordinate_label.pack(side=tk.BOTTOM, fill="x")
+
         # Create canvas where the camera frame and zone overlay are displayed.
         self.canvas = tk.Canvas(
             self,
@@ -25,15 +34,7 @@ class FrameCanvas(tk.Frame):
             width=self.max_width,
             height=self.max_height
         )
-        self.canvas.pack(fill=tk.BOTH, expand=True)
-
-        # Label for displaying real frame coordinates under the mouse.
-        self.coordinate_label = tk.Label(
-            self,
-            text="Coordinates: X = -, Y = -",
-            anchor="w"
-        )
-        self.coordinate_label.pack(fill="x")
+        self.canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         # Drawing/editing states.
         self.drawing = False
@@ -62,7 +63,7 @@ class FrameCanvas(tk.Frame):
         self.capture = CameraModule().get_webcam_capture()
 
         # Set camera resolution.
-        # Your newer version uses 640x480, so the saved zone coordinates
+        # This version uses 640x480, so the saved zone coordinates
         # will match this camera resolution.
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -150,13 +151,19 @@ class FrameCanvas(tk.Frame):
             return
 
         # Editing mode: clicking near an existing point selects it.
-        self.selected_point_index = self.find_nearest_point(event.x, event.y)
+        if self.editing:
+            self.selected_point_index = self.find_nearest_point(event.x, event.y)
 
-        if self.selected_point_index is not None:
-            print(f"Selected point {self.selected_point_index + 1} for editing.")
+            if self.selected_point_index is not None:
+                print(f"Selected point {self.selected_point_index + 1} for editing.")
+            else:
+                print("No point selected.")
 
     def on_drag_point(self, event):
         # Drag selected point to a new position.
+        if not self.editing:
+            return
+
         if self.selected_point_index is None:
             return
 
@@ -167,6 +174,11 @@ class FrameCanvas(tk.Frame):
 
         self.drawn_points[self.selected_point_index] = original_point
         self.__redraw_overlay()
+
+        x, y = original_point
+        self.coordinate_label.config(
+            text=f"Coordinates: X = {int(x)}, Y = {int(y)}"
+        )
 
     def on_release_point(self, event):
         # Stop editing the selected point.
@@ -203,6 +215,9 @@ class FrameCanvas(tk.Frame):
             return
 
         self.closed_zone_visible = True
+        self.editing = True
+        self.drawing = False
+
         self.__redraw_overlay()
 
         print("Zone displayed.")
@@ -260,9 +275,14 @@ class FrameCanvas(tk.Frame):
 
     def zoom(self, event):
         # Mouse wheel zoom.
-        if event.num == 4 or event.delta > 0:
+        # The checks with hasattr make this more stable across Windows, macOS, and Linux.
+        if hasattr(event, "num") and event.num == 4:
             self.zoom_factor *= 1.1
-        elif event.num == 5 or event.delta < 0:
+        elif hasattr(event, "num") and event.num == 5:
+            self.zoom_factor /= 1.1
+        elif hasattr(event, "delta") and event.delta > 0:
+            self.zoom_factor *= 1.1
+        elif hasattr(event, "delta") and event.delta < 0:
             self.zoom_factor /= 1.1
 
         # Limit zoom level.
@@ -275,7 +295,11 @@ class FrameCanvas(tk.Frame):
 
     def find_nearest_point(self, canvas_x, canvas_y):
         # Find nearest existing point for editing.
-        threshold = 15
+        # A larger threshold makes selecting points easier.
+        threshold = 25
+
+        nearest_index = None
+        nearest_distance = float("inf")
 
         for index, point in enumerate(self.drawn_points):
             point_canvas = self.original_to_canvas_coordinates(point[0], point[1])
@@ -287,14 +311,18 @@ class FrameCanvas(tk.Frame):
 
             distance = ((canvas_x - px) ** 2 + (canvas_y - py) ** 2) ** 0.5
 
-            if distance <= threshold:
-                return index
+            if distance < nearest_distance and distance <= threshold:
+                nearest_distance = distance
+                nearest_index = index
 
-        return None
+        return nearest_index
 
     def canvas_to_original_coordinates(self, canvas_x, canvas_y):
         # Convert canvas coordinates to original camera-frame coordinates.
         if self.last_frame is None:
+            return None
+
+        if self.current_img_w == 0 or self.current_img_h == 0:
             return None
 
         frame_h, frame_w = self.last_frame.shape[:2]
@@ -326,6 +354,9 @@ class FrameCanvas(tk.Frame):
     def original_to_canvas_coordinates(self, original_x, original_y):
         # Convert original camera-frame coordinates to displayed canvas coordinates.
         if self.last_frame is None:
+            return None
+
+        if self.current_img_w == 0 or self.current_img_h == 0:
             return None
 
         center_x, center_y = self.__return_center()
@@ -433,7 +464,8 @@ class FrameCanvas(tk.Frame):
                 x2,
                 y2,
                 fill="blue",
-                width=2
+                width=2,
+                tags=("zone_overlay",)
             )
 
             self.overlay_ids.append(line_id)
@@ -449,7 +481,8 @@ class FrameCanvas(tk.Frame):
                 x2,
                 y2,
                 fill="blue",
-                width=2
+                width=2,
+                tags=("zone_overlay",)
             )
 
             self.overlay_ids.append(line_id)
@@ -458,7 +491,8 @@ class FrameCanvas(tk.Frame):
         for index, point in enumerate(canvas_points):
             x, y = point
 
-            radius = 5
+            # Slightly larger radius makes points easier to select for editing.
+            radius = 7
 
             point_id = self.canvas.create_oval(
                 x - radius,
@@ -467,15 +501,17 @@ class FrameCanvas(tk.Frame):
                 y + radius,
                 fill="green",
                 outline="black",
-                width=1.5
+                width=1.5,
+                tags=("zone_overlay", "zone_point")
             )
 
             text_id = self.canvas.create_text(
-                x + 12,
-                y - 12,
+                x + 14,
+                y - 14,
                 text=str(index + 1),
                 fill="white",
-                font=("Arial", 12, "bold")
+                font=("Arial", 12, "bold"),
+                tags=("zone_overlay",)
             )
 
             self.overlay_ids.append(point_id)
